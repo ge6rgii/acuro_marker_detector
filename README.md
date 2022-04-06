@@ -3,9 +3,6 @@
 just run the following script:
 * `chmod +x run.sh && ./run.sh`
 
-* pipenv install
-* pipenv run python3 main.py
-
 ### Configuration
 you can set the following config varibles by creating .env file:
 
