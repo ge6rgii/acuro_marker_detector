@@ -20,5 +20,7 @@ class PlotBuilder:
         self.axes.set_ylim([0, self.height])
 
     def build_anumated_2d_plot(self):
-        _ = animation.FuncAnimation(self.figure, self.plot_drawer, repeat=False)
+        # This unused "anum" definition is necessary
+        # to avoid garbage collection of FuncAnimation.
+        anim = animation.FuncAnimation(self.figure, self.plot_drawer, repeat=False)
         plt.show()
