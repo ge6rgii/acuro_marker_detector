@@ -19,4 +19,4 @@ you can set the following config varibles by creating .env file:
 
 For now, it draws an animated 2D Graph of the Aruco Marker movement and outputs processed video in realtime
 
-<img src="https://github.com/ge6rgii/aruco_marker_detector/blob/main/test_videos/screenshot.png" width=5s00px>
+<img src="https://github.com/ge6rgii/aruco_marker_detector/blob/main/test_videos/screenshot.png" width=500px>
