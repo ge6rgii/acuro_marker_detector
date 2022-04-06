@@ -3,6 +3,9 @@
 just run the following script:
 * `chmod +x run.sh && ./run.sh`
 
+If there will be any issues with Matplotlib try this:
+* sudo apt install python3-tk
+
 ### Configuration
 you can set the following config varibles by creating .env file:
 
