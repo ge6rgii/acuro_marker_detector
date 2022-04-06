@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 opencv-contrib-python = "*"
 matplotlib = "*"
-dotenv-python = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
