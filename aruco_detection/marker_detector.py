@@ -1,4 +1,5 @@
 import cv2 as cv
+import numpy as np
 
 import aruco_detection.config as cfg
 
@@ -42,6 +43,17 @@ class MarkerDetector:
             corners, _, _ = cv.aruco.detectMarkers(
                 frame, self.aruco_dictionary, parameters=self.aruco_detector_parametrs
             )
+            # TODO: remove me.
+            # just for testing.
+            yaml_data = cv.FileStorage("/Users/georgii/Code/tws_italy/cam_calib.yml", cv.FILE_STORAGE_READ)
+            matrix_coefficients = np.asarray(yaml_data.getNode("K").mat())
+            distortion_coefficients = np.asarray(yaml_data.getNode("D").mat())
+            rvec, tvec, markerPoints = cv.aruco.estimatePoseSingleMarkers(
+                corners[0], 0.01, matrix_coefficients, distortion_coefficients
+            )
+            a = rvec[0]
+            b = tvec[0]
+            cv.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[0], tvec[0], 0.03)
             marker_corners = self.extract_marker_corners(corners)
             x_center, y_center = self.get_marker_center_coordinates(marker_corners)
             yield x_center, self.height - y_center
@@ -58,3 +70,7 @@ class MarkerDetector:
 
         self.video.release()
         cv.destroyAllWindows()
+
+
+# detector = MarkerDetector("/Users/georgii/Code/tws_italy/test_videos/ArucoVideo.mp4")
+# detector.marker_center_coordinates_generator()
