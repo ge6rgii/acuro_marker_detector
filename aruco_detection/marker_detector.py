@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 
 import aruco_detection.config as cfg
+import numpy as np
 
 
 class MarkerDetector:
@@ -11,6 +12,11 @@ class MarkerDetector:
         self.width = self.video.get(cv.CAP_PROP_FRAME_WIDTH)
         self.height = self.video.get(cv.CAP_PROP_FRAME_HEIGHT)
         self.aruco_detector_parametrs = cv.aruco.DetectorParameters_create()
+        self.cam_calibration = cv.FileStorage(cfg.CAM_CALIBRATION_PATH, cv.FILE_STORAGE_READ)
+        self.matrix_coefficients = np.asarray(self.cam_calibration.getNode("K").mat())
+        self.distortion_coefficients = np.asarray(self.cam_calibration.getNode("D").mat())
+        self.rvec = np.array([])
+        self.tvec = np.array([])
 
     @property
     def aruco_dictionary(self):
@@ -18,6 +24,10 @@ class MarkerDetector:
             "APRILTAG_16H5": cv.aruco.DICT_APRILTAG_16H5
         }
         return cv.aruco.Dictionary_get(aruko_markers_mapper.get(cfg.ARUCO_MARKER_TYPE))
+
+    @property
+    def use_extraction_guess(self):
+        return bool(self.tvec.size and self.rvec.size)
 
     @staticmethod
     def extract_marker_corners(corners):
@@ -29,13 +39,32 @@ class MarkerDetector:
         topLeft = (int(topLeft[0]), int(topLeft[1]))
         return topRight, bottomRight, bottomLeft, topLeft
 
-    def get_marker_center_coordinates(self, parsed_corners):
+    @staticmethod
+    def inversePerspective(rvec, tvec):
+        R, _ = cv.Rodrigues(rvec)
+        R = np.matrix(R).T
+        invTvec = np.dot(R, np.matrix(-tvec))
+        invRvec, _ = cv.Rodrigues(R)
+        return invRvec, invTvec
+
+    @staticmethod
+    def get_marker_center_coordinates(parsed_corners):
         _, bottomRight, _, topLeft = parsed_corners
         x_center = int((topLeft[0] + bottomRight[0]) / 2.0)
         y_center = int((topLeft[1] + bottomRight[1]) / 2.0)
         return x_center, y_center
 
+    @staticmethod
+    def draw(frame, imgpts):
+        frame = cv.line(frame, imgpts[0], imgpts[1], (0,0,255), 5)
+        frame = cv.line(frame, imgpts[0], imgpts[2], (0,255,0), 5)
+        frame = cv.line(frame, imgpts[0], imgpts[3], (255,0,0), 5)
+        frame = cv.line(frame, imgpts[0], imgpts[4], (255,255,), 2)
+        return frame
+
     def marker_center_coordinates_generator(self):
+        # TODO: split this madness into separate methods.
+        # TODO: a lot of staticmethods means that something goes wrong.
         while self.video.isOpened():
             ret, frame = self.video.read()
             if not ret: break
@@ -43,34 +72,37 @@ class MarkerDetector:
             corners, _, _ = cv.aruco.detectMarkers(
                 frame, self.aruco_dictionary, parameters=self.aruco_detector_parametrs
             )
-            # TODO: remove me.
-            # just for testing.
-            yaml_data = cv.FileStorage("/Users/georgii/Code/tws_italy/cam_calib.yml", cv.FILE_STORAGE_READ)
-            matrix_coefficients = np.asarray(yaml_data.getNode("K").mat())
-            distortion_coefficients = np.asarray(yaml_data.getNode("D").mat())
-            rvec, tvec, markerPoints = cv.aruco.estimatePoseSingleMarkers(
-                corners[0], 0.01, matrix_coefficients, distortion_coefficients
-            )
-            a = rvec[0]
-            b = tvec[0]
-            cv.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[0], tvec[0], 0.03)
             marker_corners = self.extract_marker_corners(corners)
             x_center, y_center = self.get_marker_center_coordinates(marker_corners)
-            yield x_center, self.height - y_center
 
-            cv.circle(frame, (x_center, y_center), 4, (0, 0, 255), -1)
-            cv.putText(frame, f"{x_center}, {y_center}",
-                (x_center, y_center - 15),
-                cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2
+            object_points = np.array([(-1, 1, 0.0),(1, 1, 0.0), (1, -1, 0.0),(-1, -1, 0.0)])
+            _, self.rvec, self.tvec = cv.solvePnP(
+                objectPoints=object_points,
+                imagePoints=corners[0],
+                cameraMatrix=self.matrix_coefficients,
+                distCoeffs=self.distortion_coefficients,
+                flags=cv.SOLVEPNP_ITERATIVE,
+                useExtrinsicGuess=self.use_extraction_guess,
+                rvec=self.rvec,
+                tvec=self.tvec,
             )
 
+            # Translation vector inversion to switch to camera coordinates.
+            rotation_matrix, _ = cv.Rodrigues(self.rvec)
+            inverted = np.linalg.inv(rotation_matrix)
+            inv_tvec = -np.dot(inverted, self.tvec)
+            # _, inv_tvec = self.inversePerspective(self.rvec, self.tvec)
+
+            axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3], [0,0,-3]])
+            imgpts, _ = cv.projectPoints(axis, self.rvec, self.tvec, self.matrix_coefficients, self.distortion_coefficients)
+            imgpts = imgpts.astype(int).reshape(5, 2)
+            yield inv_tvec[0][0], inv_tvec[1][0] * -1, inv_tvec[2][0]
+
+            frame = self.draw(frame, imgpts)
+            cv.circle(frame, (x_center, y_center), 4, (0, 0, 255), -1)
             cv.imshow('frame', frame)
             if cv.waitKey(1) == ord('q'):
                 break
 
         self.video.release()
         cv.destroyAllWindows()
-
-
-# detector = MarkerDetector("/Users/georgii/Code/tws_italy/test_videos/ArucoVideo.mp4")
-# detector.marker_center_coordinates_generator()

@@ -5,5 +5,6 @@ from aruco_detection import config as cfg
 
 if __name__ == "__main__":
     detector = MarkerDetector(cfg.VIDEO_PATH)
+    detector.marker_center_coordinates_generator()
     plot_builder = PlotBuilder(detector.width, detector.height, detector.marker_center_coordinates_generator)
     plot_builder.build_anumated_2d_plot()
