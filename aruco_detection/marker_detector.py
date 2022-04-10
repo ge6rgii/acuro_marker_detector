@@ -54,12 +54,17 @@ class MarkerDetector:
         y_center = int((topLeft[1] + bottomRight[1]) / 2.0)
         return x_center, y_center
 
-    @staticmethod
-    def draw(frame, imgpts):
+    def draw_axis(self, frame, imgpts):
+        axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3]])
+        imgpts, _ = cv.projectPoints(
+            axis, self.rvec, self.tvec, self.matrix_coefficients, self.distortion_coefficients
+        )
+        imgpts = imgpts.astype(int).reshape(4, 2)
+
         frame = cv.line(frame, imgpts[0], imgpts[1], (0,0,255), 5)
         frame = cv.line(frame, imgpts[0], imgpts[2], (0,255,0), 5)
         frame = cv.line(frame, imgpts[0], imgpts[3], (255,0,0), 5)
-        frame = cv.line(frame, imgpts[0], imgpts[4], (255,255,), 2)
+
         return frame
 
     def marker_center_coordinates_generator(self):
@@ -87,18 +92,13 @@ class MarkerDetector:
                 tvec=self.tvec,
             )
 
-            # Translation vector inversion to switch to camera coordinates.
-            rotation_matrix, _ = cv.Rodrigues(self.rvec)
-            inverted = np.linalg.inv(rotation_matrix)
-            inv_tvec = -np.dot(inverted, self.tvec)
-            # _, inv_tvec = self.inversePerspective(self.rvec, self.tvec)
-
-            axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3], [0,0,-3]])
+            axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3]])
             imgpts, _ = cv.projectPoints(axis, self.rvec, self.tvec, self.matrix_coefficients, self.distortion_coefficients)
-            imgpts = imgpts.astype(int).reshape(5, 2)
-            yield inv_tvec[0][0], inv_tvec[1][0] * -1, inv_tvec[2][0]
+            imgpts = imgpts.astype(int).reshape(4, 2)
+            yield self.tvec[0][0], self.tvec[1][0] * -1, self.tvec[2][0]
 
-            frame = self.draw(frame, imgpts)
+            # TODO: move me somewhere else.
+            frame = self.draw_axis(frame, imgpts)
             cv.circle(frame, (x_center, y_center), 4, (0, 0, 255), -1)
             cv.imshow('frame', frame)
             if cv.waitKey(1) == ord('q'):
