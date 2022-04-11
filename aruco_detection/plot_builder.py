@@ -16,6 +16,7 @@ class BasePlotBuilder(ABC):
         pass
 
     def draw_animated_plot(self):
+        # This unused "anim" var is important to avoid unwanted garbage collection.
         anim = animation.FuncAnimation(self.figure, self.plot_drawer, repeat=False)
         plt.show()
 
