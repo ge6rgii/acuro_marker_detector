@@ -1,15 +1,19 @@
 import cv2 as cv
+import numpy as np
 
 import aruco_detection.config as cfg
+from aruco_detection.video_stream import VideoStream
 
 
 class MarkerDetector:
 
-    def __init__(self, video_path):
-        self.video = cv.VideoCapture(video_path)
-        self.width = self.video.get(cv.CAP_PROP_FRAME_WIDTH)
-        self.height = self.video.get(cv.CAP_PROP_FRAME_HEIGHT)
+    def __init__(self):
         self.aruco_detector_parametrs = cv.aruco.DetectorParameters_create()
+        self.cam_calibration = cv.FileStorage(cfg.CAM_CALIBRATION_PATH, cv.FILE_STORAGE_READ)
+        self.matrix_coefficients = np.asarray(self.cam_calibration.getNode("K").mat())
+        self.distortion_coefficients = np.asarray(self.cam_calibration.getNode("D").mat())
+        self.rvec = np.array([])
+        self.tvec = np.array([])
 
     @property
     def aruco_dictionary(self):
@@ -17,6 +21,10 @@ class MarkerDetector:
             "APRILTAG_16H5": cv.aruco.DICT_APRILTAG_16H5
         }
         return cv.aruco.Dictionary_get(aruko_markers_mapper.get(cfg.ARUCO_MARKER_TYPE))
+
+    @property
+    def use_extraction_guess(self):
+        return bool(self.tvec.size and self.rvec.size)
 
     @staticmethod
     def extract_marker_corners(corners):
@@ -28,33 +36,58 @@ class MarkerDetector:
         topLeft = (int(topLeft[0]), int(topLeft[1]))
         return topRight, bottomRight, bottomLeft, topLeft
 
-    def get_marker_center_coordinates(self, parsed_corners):
+    @staticmethod
+    def get_marker_center_coordinates(parsed_corners):
         _, bottomRight, _, topLeft = parsed_corners
         x_center = int((topLeft[0] + bottomRight[0]) / 2.0)
         y_center = int((topLeft[1] + bottomRight[1]) / 2.0)
         return x_center, y_center
 
+    def draw_axis(self, frame, imgpts):
+        axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3]])
+        imgpts, _ = cv.projectPoints(
+            axis, self.rvec, self.tvec, self.matrix_coefficients, self.distortion_coefficients
+        )
+        imgpts = imgpts.astype(int).reshape(4, 2)
+
+        frame = cv.line(frame, imgpts[0], imgpts[1], (0,0,255), 5)
+        frame = cv.line(frame, imgpts[0], imgpts[2], (0,255,0), 5)
+        frame = cv.line(frame, imgpts[0], imgpts[3], (255,0,0), 5)
+
+        return frame
+
     def marker_center_coordinates_generator(self):
-        while self.video.isOpened():
-            ret, frame = self.video.read()
-            if not ret: break
+        for frame in VideoStream(cfg.VIDEO_PATH).stream_generator():
 
             corners, _, _ = cv.aruco.detectMarkers(
                 frame, self.aruco_dictionary, parameters=self.aruco_detector_parametrs
             )
-            marker_corners = self.extract_marker_corners(corners)
-            x_center, y_center = self.get_marker_center_coordinates(marker_corners)
-            yield x_center, self.height - y_center
 
-            cv.circle(frame, (x_center, y_center), 4, (0, 0, 255), -1)
-            cv.putText(frame, f"{x_center}, {y_center}",
-                (x_center, y_center - 15),
-                cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2
+            object_points = np.array([(-1, 1, 0.0),(1, 1, 0.0), (1, -1, 0.0),(-1, -1, 0.0)])
+            _, self.rvec, self.tvec = cv.solvePnP(
+                objectPoints=object_points,
+                imagePoints=corners[0],
+                cameraMatrix=self.matrix_coefficients,
+                distCoeffs=self.distortion_coefficients,
+                flags=cv.SOLVEPNP_ITERATIVE,
+                useExtrinsicGuess=self.use_extraction_guess,
+                rvec=self.rvec,
+                tvec=self.tvec,
             )
 
-            cv.imshow('frame', frame)
+            yield self.tvec[0][0], self.tvec[1][0] * -1, self.tvec[2][0]
+
+            self.render_video_with_marker_center(frame, corners)
             if cv.waitKey(1) == ord('q'):
                 break
 
-        self.video.release()
-        cv.destroyAllWindows()
+    def render_video_with_marker_center(self, frame, corners):
+        marker_corners = self.extract_marker_corners(corners)
+        x_center, y_center = self.get_marker_center_coordinates(marker_corners)
+
+        axis = np.float32([[0,0,0], [3,0,0], [0,3,0], [0,0,3]])
+        imgpts, _ = cv.projectPoints(axis, self.rvec, self.tvec, self.matrix_coefficients, self.distortion_coefficients)
+        imgpts = imgpts.astype(int).reshape(4, 2)
+        frame = self.draw_axis(frame, imgpts)
+        cv.circle(frame, (x_center, y_center), 4, (0, 0, 255), -1)
+        cv.imshow('frame', frame)
