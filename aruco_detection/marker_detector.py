@@ -56,7 +56,7 @@ class MarkerDetector:
 
         return frame
 
-    def marker_center_coordinates_generator(self):
+    def center_coordinates_generator(self):
         for frame in VideoStream(cfg.VIDEO_PATH).stream_generator():
 
             corners, _, _ = cv.aruco.detectMarkers(

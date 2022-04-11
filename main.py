@@ -4,6 +4,5 @@ from aruco_detection.plot_builder import PlotBuilder3D
 
 if __name__ == "__main__":
     detector = MarkerDetector()
-    detector.marker_center_coordinates_generator()
-    plot_builder = PlotBuilder3D(detector.marker_center_coordinates_generator)
+    plot_builder = PlotBuilder3D(detector.center_coordinates_generator)
     plot_builder.draw_animated_3d_plot()
