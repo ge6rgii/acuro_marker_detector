@@ -75,7 +75,10 @@ class MarkerDetector:
                 tvec=self.tvec,
             )
 
-            yield self.tvec[0][0], self.tvec[1][0] * -1, self.tvec[2][0]
+            rotation_matrix = cv.Rodrigues(self.rvec)[0]
+            camera_position = np.dot(-np.transpose(rotation_matrix), self.tvec)
+
+            yield camera_position[0][0], camera_position[1][0] * -1, camera_position[2][0]
 
             self.render_video_with_marker_center(frame, corners)
             if cv.waitKey(1) == ord('q'):

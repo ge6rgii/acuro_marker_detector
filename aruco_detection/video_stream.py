@@ -10,7 +10,6 @@ class VideoStream:
 
     def stream_generator(self):
         while self.video.isOpened():
-            _, frame = self.video.read()
             ret, frame = self.video.read()
             if not ret: break
             yield frame
