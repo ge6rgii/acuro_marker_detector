@@ -5,10 +5,28 @@ import aruco_detection.config as cfg
 from aruco_detection.video_stream import VideoStream
 
 
-class MarkerDetector:
+class DetectorParametersMixin:
 
     def __init__(self):
         self.aruco_detector_parametrs = cv.aruco.DetectorParameters_create()
+        self.aruco_detector_parametrs.cornerRefinementMethod = cv.aruco.CORNER_REFINE_APRILTAG
+        self.aruco_detector_parametrs.aprilTagDeglitch = 0
+        self.aruco_detector_parametrs.aprilTagMinWhiteBlackDiff = 30
+        self.aruco_detector_parametrs.aprilTagMaxLineFitMse = 20
+        self.aruco_detector_parametrs.aprilTagCriticalRad = 0.1745329201221466 *6
+        self.aruco_detector_parametrs.aprilTagMinClusterPixels = 5
+        self.aruco_detector_parametrs.maxErroneousBitsInBorderRate = 0.35
+        self.aruco_detector_parametrs.errorCorrectionRate = 1.0
+        self.aruco_detector_parametrs.minMarkerPerimeterRate = 0.05
+        self.aruco_detector_parametrs.maxMarkerPerimeterRate = 4
+        self.aruco_detector_parametrs.polygonalApproxAccuracyRate = 0.05
+        self.aruco_detector_parametrs.minCornerDistanceRate = 0.05
+
+
+class MarkerDetector(DetectorParametersMixin):
+
+    def __init__(self):
+        super().__init__()
         self.cam_calibration = cv.FileStorage(cfg.CAM_CALIBRATION_PATH, cv.FILE_STORAGE_READ)
         self.matrix_coefficients = np.asarray(self.cam_calibration.getNode("K").mat())
         self.distortion_coefficients = np.asarray(self.cam_calibration.getNode("D").mat())
