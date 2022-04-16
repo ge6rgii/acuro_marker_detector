@@ -1,22 +1,17 @@
-### How to run:
+# Aruco Marker Pose Estimation
+The purpose of this project is to reconstruct the 2d/3d pose of the marker from videos.
 
-just run the following script:
-* `chmod +x run.sh && ./run.sh`
+## Environment variables
 
-If there will be any issues with Matplotlib try this:
-* sudo apt install python3-tk
+* ARUCO_MARKER_TYPE - a type of detecting aruco marker, by default set to "APRILTAG_16H5".
+* CAM_CALIBRATION_PATH - a path to the file with camera calibration data, by default we get from the root of this repository.
+* VIDEO_PATH - a path to the video to process. By default it gets the video from "test_videos" folder.
+* MARKER_PLANE - a plane you want to see on 2d plot; available values: FRONT, SAGITTAL and TRANSVERSE; not used for 3d plots.
 
-### Configuration
-you can set the following config varibles by creating .env file:
+## How to run
 
+Just run the following command:
 
-* ARUCO_MARKER_TYPE - the type of Aruco marker. By default is "APRILTAG_16H5"
-
-* VIDEO_PATH - path to the video you want to proess. By default it gets ArucoVideo.mp4 from test_videos folder
-
-
-### What it does?
-
-For now, it draws an animated 2D Graph of the Aruco Marker movement and outputs processed video in realtime
-
-<img src="https://github.com/ge6rgii/aruco_marker_detector/blob/main/test_videos/screenshot.png" width=500px>
+```bash
+pipenv install && pipenv run python main.py
+```
